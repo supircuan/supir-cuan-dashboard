@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bang Supir Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+            background: url('background.jpg') no-repeat center center fixed;
+            background-size: cover;
+            filter: brightness(1.3) contrast(1.2) saturate(1.3);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(5, 5, 10, 0.2); 
+            z-index: -1;
+        }
+
+        .ticker-top, .ticker-bottom {
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+            z-index: 1000;
+            height: 36px;
+            display: flex;
+            align-items: center;
+        }
+
+        .ticker-top {
+            background: rgba(255, 152, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .ticker-bottom {
+            background: rgba(0, 212, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .ticker-label { display: none !important; }
+
+        .ticker-track {
+            display: inline-flex;
+            animation: scroll-left 60s linear infinite;
+            padding-left: 100%;
+        }
+
+        .ticker-item {
+            display: inline-flex;
+            align-items: center;
+            margin: 0 25px;
+            padding: 5px 15px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 5px;
+            font-size: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+
+        .ticker-item .name { color: #ffd700; font-weight: bold; margin-right: 10px; white-space: nowrap; }
+        .ticker-item .price { color: #fff; margin-right: 8px; }
+        .ticker-item .change-up { color: #00ff88; }
+        .ticker-item .change-down { color: #ff4444; }
+
+        @keyframes scroll-left {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        header {
+            padding: 12px 20px;
+            background: rgba(15, 15, 25, 0.4);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 { margin: 0; font-size: 18px; color: #ffffff; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        
+        .header-controls { display: flex; gap: 12px; align-items: center; }
+        .search-box { display: flex; gap: 8px; align-items: center; }
+        
+        input[type="text"] {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            color: white;
+            padding: 6px 12px; border-radius: 6px; font-size: 12px; text-transform: uppercase;
+            width: 100px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
+            color: #000; border: none; padding: 6px 16px;
+            border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;
+            box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(255, 215, 0, 0.5); }
+
+        .toggle-container {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 6px 12px; border-radius: 6px;
+            font-size: 12px; cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .toggle-container input { cursor: pointer; accent-color: #ffd700; }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        
+        .chart-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        
+        .chart-container {
+            width: 100%;
+            max-width: 700px;
+            height: 450px;
+            background: rgba(15, 20, 30, 0.35);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .chart-container.hidden { display: none; }
+        #chart { width: 100%; height: 100%; }
+
+        .indicator-panel {
+            width: 100%;
+            max-width: 700px;
+            margin-top: 15px;
+            background: rgba(15, 20, 30, 0.35);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 12px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .indicator-panel.hidden { display: none; }
+        
+        .indicator-toggle {
+            display: flex; align-items: center; gap: 6px;
+            cursor: pointer; padding: 6px 12px;
+            border-radius: 6px; transition: all 0.3s;
+            font-size: 11px; border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0,0,0,0.2);
+        }
+        .indicator-toggle:hover { background: rgba(255, 215, 0, 0.15); border-color: rgba(255, 215, 0, 0.5); }
+        .indicator-toggle input { cursor: pointer; accent-color: #ffd700; margin: 0; }
+        .indicator-toggle label { cursor: pointer; color: #ffffff; font-weight: 500; }
+        .indicator-toggle .color-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px currentColor; }
+
+        .timeframe-section {
+            width: 100%;
+            max-width: 700px;
+            margin-top: 15px;
+            background: rgba(15, 20, 30, 0.35);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 12px 20px;
+            display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .timeframe-section.hidden { display: none; }
+        .timeframe-label { font-size: 11px; color: #ffd700; font-weight: bold; text-transform: uppercase; }
+        .timeframe-options { display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        .timeframe-option {
+            display: flex; align-items: center; gap: 5px;
+            cursor: pointer; padding: 6px 12px;
+            border-radius: 6px; transition: all 0.3s;
+            font-size: 11px; border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0,0,0,0.2);
+        }
+        .timeframe-option:hover { background: rgba(255, 215, 0, 0.15); }
+        .timeframe-option.active { background: rgba(255, 215, 0, 0.25); border-color: #ffd700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); }
+        .timeframe-option input { cursor: pointer; accent-color: #ffd700; margin: 0; }
+        .timeframe-option label { cursor: pointer; color: #ffffff; font-weight: 500; }
+
+        .macd-container {
+            width: 100%;
+            max-width: 700px;
+            height: 160px;
+            margin-top: 15px;
+            background: rgba(15, 20, 30, 0.35);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .macd-container.hidden { display: none; }
+        #macdChart { width: 100%; height: 100%; }
+
+        .dashboard-panel {
+            width: 320px;
+            background: rgba(15, 20, 30, 0.4);
+            backdrop-filter: blur(25px);
+            padding: 15px; 
+            overflow-y: auto;
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            flex-shrink: 0;
+            box-shadow: -4px 0 30px rgba(0, 0, 0, 0.3);
+        }
+        .panel-title {
+            font-size: 14px; font-weight: bold; color: #ffd700; margin-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.3); padding-bottom: 8px;
+        }
+        
+        .metric-card { 
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px; padding: 10px; margin-bottom: 10px;
+            transition: all 0.3s;
+            backdrop-filter: blur(5px);
+        }
+        .metric-card:hover { 
+            background: rgba(255, 215, 0, 0.1); 
+            border-color: rgba(255, 215, 0, 0.4); 
+            transform: translateX(-2px); 
+        }
+        .metric-label { font-size: 10px; color: #a0a0a0; margin-bottom: 4px; text-transform: uppercase; }
+        .metric-value { font-size: 14px; font-weight: bold; color: #ffffff; }
+        .text-green { color: #00ff88 !important; }
+        .text-red { color: #ff4444 !important; }
+        .text-yellow { color: #ffd700 !important; }
+        .text-blue { color: #00d4ff !important; }
+        .text-purple { color: #b388ff !important; }
+        
+        #statusOverlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 10, 15, 0.8); backdrop-filter: blur(5px);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+        }
+        #statusOverlay.hidden { display: none; }
+        .spinner {
+            border: 3px solid rgba(255, 215, 0, 0.2); border-top: 3px solid #ffd700; border-radius: 50%;
+            width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .data-source-badge {
+            position: absolute; top: 10px; left: 10px; z-index: 100;
+            background: rgba(0, 255, 136, 0.2);
+            padding: 4px 10px; border-radius: 4px;
+            font-size: 10px; font-weight: bold;
+            border: 1px solid #00ff88; color: #00ff88;
+        }
+        .timeframe-badge {
+            position: absolute; top: 10px; right: 80px; z-index: 100;
+            background: rgba(0, 212, 255, 0.2);
+            padding: 4px 10px; border-radius: 4px;
+            font-size: 10px; font-weight: bold;
+            border: 1px solid #00d4ff; color: #00d4ff;
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 215, 0, 0.3); border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="ticker-top">
+        <div class="ticker-label">📊 COMMODITIES</div>
+        <div class="ticker-track" id="tickerCommodities"></div>
+    </div>
+
+    <div id="statusOverlay">
+        <div class="spinner"></div>
+        <div id="statusText">Memuat...</div>
+    </div>
+
+    <header>
+        <h1>🐂 Bang Supir Dashboard 🐻</h1>
+        <div class="header-controls">
+            <label class="toggle-container">
+                <input type="checkbox" id="toggleChart" checked>
+                Tampilkan Chart
+            </label>
+            <div class="search-box">
+                <input type="text" id="stockInput" value="BBCA" placeholder="Kode">
+                <button id="btnAnalisis" onclick="loadStockData()">Analisis</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="chart-section">
+            <div class="chart-container" id="chartContainer">
+                <div id="dataSourceBadge" class="data-source-badge"> Memuat...</div>
+                <div id="timeframeBadge" class="timeframe-badge">Daily</div>
+                <div id="chart"></div>
+            </div>
+
+            <div class="timeframe-section" id="timeframeSection">
+                <div class="timeframe-label">⏱️ Time Frame:</div>
+                <div class="timeframe-options">
+                    <div class="timeframe-option active" data-timeframe="daily">
+                        <input type="radio" name="timeframe" id="tfDaily" value="daily" checked>
+                        <label for="tfDaily">📅 Harian</label>
+                    </div>
+                    <div class="timeframe-option" data-timeframe="weekly">
+                        <input type="radio" name="timeframe" id="tfWeekly" value="weekly">
+                        <label for="tfWeekly">📆 Mingguan</label>
+                    </div>
+                    <div class="timeframe-option" data-timeframe="monthly">
+                        <input type="radio" name="timeframe" id="tfMonthly" value="monthly">
+                        <label for="tfMonthly">🗓️ Bulanan</label>
+                    </div>
+                    <div class="timeframe-option" data-timeframe="yearly">
+                        <input type="radio" name="timeframe" id="tfYearly" value="yearly">
+                        <label for="tfYearly">📊 Tahunan</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="indicator-panel" id="indicatorPanel">
+                <div class="indicator-toggle">
+                    <input type="checkbox" id="toggleMA50">
+                    <span class="color-dot" style="background: #fbc02d;"></span>
+                    <label for="toggleMA50">MA50</label>
+                </div>
+                <div class="indicator-toggle">
+                    <input type="checkbox" id="toggleMA100">
+                    <span class="color-dot" style="background: #2962ff;"></span>
+                    <label for="toggleMA100">MA100</label>
+                </div>
+                <div class="indicator-toggle">
+                    <input type="checkbox" id="toggleMA200">
+                    <span class="color-dot" style="background: #f23645;"></span>
+                    <label for="toggleMA200">MA200</label>
+                </div>
+                <div class="indicator-toggle">
+                    <input type="checkbox" id="toggleVolume">
+                    <span class="color-dot" style="background: #26a69a;"></span>
+                    <label for="toggleVolume">Volume</label>
+                </div>
+                <div class="indicator-toggle">
+                    <input type="checkbox" id="toggleFibonacci">
+                    <span class="color-dot" style="background: #ff9800;"></span>
+                    <label for="toggleFibonacci">Fibonacci</label>
+                </div>
+                <div class="indicator-toggle">
+                    <input type="checkbox" id="toggleBollinger">
+                    <span class="color-dot" style="background: #9c27b0;"></span>
+                    <label for="toggleBollinger">Bollinger</label>
+                </div>
+                <div class="indicator-toggle">
+                    <input type="checkbox" id="toggleMACD">
+                    <span class="color-dot" style="background: #00bcd4;"></span>
+                    <label for="toggleMACD">MACD</label>
+                </div>
+                <div class="indicator-toggle">
+                    <input type="checkbox" id="toggleGannFan">
+                    <span class="color-dot" style="background: #00e676;"></span>
+                    <label for="toggleGannFan">Gann Fan</label>
+                </div>
+                <div class="indicator-toggle">
+                    <input type="checkbox" id="toggleSquareOf9">
+                    <span class="color-dot" style="background: #e91e63;"></span>
+                    <label for="toggleSquareOf9">Square of 9</label>
+                </div>
+            </div>
+
+            <div class="macd-container hidden" id="macdContainer">
+                <div id="macdChart"></div>
+            </div>
+        </div>
+
+        <div class="dashboard-panel">
+            <div class="panel-title">📈 Status & Rekomendasi</div>
+            <div class="metric-card"><div class="metric-label">Status Market</div><div class="metric-value" id="statusMarket">-</div></div>
+            <div class="metric-card"><div class="metric-label">Zona Akumulasi</div><div class="metric-value text-green" id="zonaAkumulasi">-</div></div>
+            <div class="metric-card"><div class="metric-label">Zona Distribusi</div><div class="metric-value text-red" id="zonaDistribusi">-</div></div>
+            <div class="metric-card"><div class="metric-label">Support Kuat</div><div class="metric-value text-blue" id="supportKuat">-</div></div>
+            <div class="metric-card"><div class="metric-label">Resistance Kuat</div><div class="metric-value text-yellow" id="resistanceKuat">-</div></div>
+            <div class="metric-card"><div class="metric-label">Target Harga</div><div class="metric-value text-green" id="targetHarga">-</div></div>
+            <div class="metric-card"><div class="metric-label">MACD Signal</div><div class="metric-value text-purple" id="macdSignal">-</div></div>
+
+            <div class="panel-title" style="margin-top: 12px;">🔮 Gann Square of 9</div>
+            <div class="metric-card"><div class="metric-label">Resistance 4</div><div class="metric-value text-red" id="sq9Res4">-</div></div>
+            <div class="metric-card"><div class="metric-label">Resistance 3</div><div class="metric-value text-red" id="sq9Res3">-</div></div>
+            <div class="metric-card"><div class="metric-label">Resistance 2</div><div class="metric-value text-red" id="sq9Res2">-</div></div>
+            <div class="metric-card"><div class="metric-label">Resistance 1</div><div class="metric-value text-yellow" id="sq9Res1">-</div></div>
+            <div class="metric-card"><div class="metric-label">Support 1</div><div class="metric-value text-blue" id="sq9Sup1">-</div></div>
+            <div class="metric-card"><div class="metric-label">Support 2</div><div class="metric-value text-blue" id="sq9Sup2">-</div></div>
+
+            <div class="panel-title" style="margin-top: 12px;">🌀 Gann Fan Analysis</div>
+            <div class="metric-card"><div class="metric-label">Posisi Harga</div><div class="metric-value" id="gannFanPosition">-</div></div>
+            <div class="metric-card"><div class="metric-label">Kekuatan Tren</div><div class="metric-value" id="gannFanTrend">-</div></div>
+            <div class="metric-card"><div class="metric-label">Support Gann</div><div class="metric-value text-blue" id="gannFanSupport">-</div></div>
+            <div class="metric-card"><div class="metric-label">Resistance Gann</div><div class="metric-value text-yellow" id="gannFanResistance">-</div></div>
+            <div class="metric-card"><div class="metric-label">Rekomendasi</div><div class="metric-value" id="gannFanRecommendation">-</div></div>
+
+            <div class="panel-title" style="margin-top: 12px;">📋 Info Data</div>
+            <div class="metric-card"><div class="metric-label">Harga Real-Time</div><div class="metric-value" id="hargaTerakhir">-</div></div>
+            <div class="metric-card"><div class="metric-label">MA50/100/200</div><div class="metric-value" style="font-size: 10px;" id="infoMA">-</div></div>
+        </div>
+    </div>
+
+    <div class="ticker-bottom">
+        <div class="ticker-label">📈 GLOBAL INDICES</div>
+        <div class="ticker-track" id="tickerIndices"></div>
+    </div>
+
+    <script>
+        async function updateTickers() {
+            try {
+                const commResponse = await fetch('/api/ticker/commodities');
+                const commData = await commResponse.json();
+                updateCommoditiesTicker(commData);
+                const idxResponse = await fetch('/api/ticker/indices');
+                const idxData = await idxResponse.json();
+                updateIndicesTicker(idxData);
+            } catch (error) { console.error('Error updating tickers:', error); }
+        }
+
+        function updateCommoditiesTicker(data) {
+            const container = document.getElementById('tickerCommodities');
+            const items = [
+                { name: 'OIL', key: 'OIL' }, { name: 'BRENT', key: 'BRENT' },
+                { name: 'CPO', key: 'CPO' }, { name: 'COAL', key: 'COAL' },
+                { name: 'GOLD', key: 'GOLD' }, { name: 'SILVER', key: 'SILVER' },
+                { name: 'NICKEL', key: 'NICKEL' }, { name: 'ALUMINIUM', key: 'ALUMINIUM' }
+            ];
+            let html = '';
+            items.forEach(item => {
+                const d = data[item.key] || { price: 0, change: 0, changePercent: 0 };
+                const changeClass = d.change >= 0 ? 'change-up' : 'change-down';
+                const changeSign = d.change >= 0 ? '+' : '';
+                html += `<div class="ticker-item"><span class="name">${item.name}</span><span class="price">${d.price.toFixed(2)}</span><span class="${changeClass}">(${changeSign}${d.changePercent.toFixed(2)}%)</span></div>`;
+            });
+            container.innerHTML = html + html;
+        }
+
+        function updateIndicesTicker(data) {
+    const container = document.getElementById('tickerIndices');
+    const items = [
+        { name: 'IHSG', key: 'IHSG' },      // Tambahkan IHSG di awal
+        { name: 'KOSPI', key: 'KOSPI' },
+        { name: 'HANGSENG', key: 'HANGSENG' },
+        { name: 'DOW30', key: 'DOW30' },
+        { name: 'NIKKEI', key: 'NIKKEI' },
+        { name: 'SHANGHAI', key: 'SHANGHAI' },
+        { name: 'FTSE', key: 'FTSE' }
+    ];
+    // ... (kode selanjutnya tetap sama)
+            let html = '';
+            items.forEach(item => {
+                const d = data[item.key] || { price: 0, change: 0, changePercent: 0 };
+                const changeClass = d.change >= 0 ? 'change-up' : 'change-down';
+                const changeSign = d.change >= 0 ? '+' : '';
+                html += `<div class="ticker-item"><span class="name">${item.name}</span><span class="price">${d.price.toFixed(2)}</span><span class="${changeClass}">(${changeSign}${d.changePercent.toFixed(2)}%)</span></div>`;
+            });
+            container.innerHTML = html + html;
+        }
+
+        updateTickers();
+        setInterval(updateTickers, 30000);
+
+        let chart = null, macdChart = null;
+        let candleSeries = null, volumeSeries = null;
+        let ma50Series = null, ma100Series = null, ma200Series = null;
+        let bollingerUpper = null, bollingerMiddle = null, bollingerLower = null;
+        let fibLines = [], gannFanLines = [], squareOf9Lines = [];
+        let macdLine = null, macdSignalLine = null, macdHistogram = null;
+        let currentTimeframe = 'daily';
+
+        const toggleChart = document.getElementById('toggleChart');
+        const chartContainer = document.getElementById('chartContainer');
+        const indicatorPanel = document.getElementById('indicatorPanel');
+        const macdContainer = document.getElementById('macdContainer');
+        const timeframeSection = document.getElementById('timeframeSection');
+
+        toggleChart.addEventListener('change', function() {
+            if (this.checked) {
+                chartContainer.classList.remove('hidden');
+                indicatorPanel.classList.remove('hidden');
+                timeframeSection.classList.remove('hidden');
+                if (document.getElementById('toggleMACD').checked) macdContainer.classList.remove('hidden');
+                setTimeout(() => {
+                    if (chart) chart.applyOptions({ width: chartContainer.clientWidth, height: chartContainer.clientHeight });
+                    if (macdChart) macdChart.applyOptions({ width: macdContainer.clientWidth, height: macdContainer.clientHeight });
+                }, 50);
+            } else {
+                chartContainer.classList.add('hidden');
+                indicatorPanel.classList.add('hidden');
+                timeframeSection.classList.add('hidden');
+                macdContainer.classList.add('hidden');
+            }
+        });
+
+        document.querySelectorAll('.timeframe-option').forEach(option => {
+            option.addEventListener('click', function() {
+                this.querySelector('input[type="radio"]').checked = true;
+                document.querySelectorAll('.timeframe-option').forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+                currentTimeframe = this.querySelector('input').value;
+                loadStockData();
+            });
+        });
+
+        function setupIndicatorToggles() {
+            const toggles = {
+                'toggleMA50': { series: () => ma50Series },
+                'toggleMA100': { series: () => ma100Series },
+                'toggleMA200': { series: () => ma200Series },
+                'toggleVolume': { series: () => volumeSeries },
+                'toggleBollinger': { action: (c) => { if(bollingerUpper){bollingerUpper.applyOptions({visible:c});bollingerMiddle.applyOptions({visible:c});bollingerLower.applyOptions({visible:c});} } },
+                'toggleFibonacci': { action: (c) => fibLines.forEach(l => l.applyOptions({visible:c})) },
+                'toggleGannFan': { action: (c) => gannFanLines.forEach(l => l.applyOptions({visible:c})) },
+                'toggleSquareOf9': { action: (c) => squareOf9Lines.forEach(l => l.applyOptions({visible:c})) },
+                'toggleMACD': { action: (c) => { if(c){macdContainer.classList.remove('hidden');setTimeout(()=>{if(macdChart)macdChart.applyOptions({width:macdContainer.clientWidth,height:macdContainer.clientHeight})},50);}else{macdContainer.classList.add('hidden');} } }
+            };
+            Object.keys(toggles).forEach(id => {
+                document.getElementById(id).addEventListener('change', function() {
+                    if(toggles[id].action) toggles[id].action(this.checked);
+                    else if(toggles[id].series()){toggles[id].series().applyOptions({visible:this.checked});}
+                });
+            });
+        }
+
+        function applyIndicatorVisibility() {
+            if (ma50Series) ma50Series.applyOptions({ visible: document.getElementById('toggleMA50').checked });
+            if (ma100Series) ma100Series.applyOptions({ visible: document.getElementById('toggleMA100').checked });
+            if (ma200Series) ma200Series.applyOptions({ visible: document.getElementById('toggleMA200').checked });
+            if (volumeSeries) volumeSeries.applyOptions({ visible: document.getElementById('toggleVolume').checked });
+            if (bollingerUpper) bollingerUpper.applyOptions({ visible: document.getElementById('toggleBollinger').checked });
+            if (bollingerMiddle) bollingerMiddle.applyOptions({ visible: document.getElementById('toggleBollinger').checked });
+            if (bollingerLower) bollingerLower.applyOptions({ visible: document.getElementById('toggleBollinger').checked });
+            fibLines.forEach(line => line.applyOptions({ visible: document.getElementById('toggleFibonacci').checked }));
+            gannFanLines.forEach(line => line.applyOptions({ visible: document.getElementById('toggleGannFan').checked }));
+            squareOf9Lines.forEach(line => line.applyOptions({ visible: document.getElementById('toggleSquareOf9').checked }));
+            
+            if (document.getElementById('toggleMACD').checked) { 
+                macdContainer.classList.remove('hidden'); 
+            } else { 
+                macdContainer.classList.add('hidden'); 
+            }
+        }
+
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                if (typeof LightweightCharts !== 'undefined') {
+                    document.getElementById('statusOverlay').classList.add('hidden');
+                    document.getElementById('btnAnalisis').disabled = false;
+                    initChart();
+                    setupIndicatorToggles();
+                    loadStockData();
+                }
+            }, 500);
+        });
+
+        function initChart() {
+            const chartElement = document.getElementById('chart');
+            chart = LightweightCharts.createChart(chartElement, {
+                width: chartElement.clientWidth, height: chartElement.clientHeight,
+                layout: { background: { type: 'solid', color: 'rgba(15, 20, 30, 0.1)' }, textColor: '#ffffff', fontSize: 10 },
+                grid: { vertLines: { color: 'rgba(255, 215, 0, 0.05)' }, horzLines: { color: 'rgba(255, 215, 0, 0.05)' } },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true },
+            });
+            candleSeries = chart.addCandlestickSeries({ upColor: '#00ff88', downColor: '#ff4444', borderVisible: false });
+            volumeSeries = chart.addHistogramSeries({ color: '#00d4ff', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.85, bottom: 0 } });
+
+            const macdElement = document.getElementById('macdChart');
+            macdChart = LightweightCharts.createChart(macdElement, {
+                width: macdElement.clientWidth, height: macdElement.clientHeight,
+                layout: { background: { type: 'solid', color: 'rgba(15, 20, 30, 0.1)' }, textColor: '#ffffff', fontSize: 9 },
+                grid: { vertLines: { color: 'rgba(255, 215, 0, 0.05)' }, horzLines: { color: 'rgba(255, 215, 0, 0.05)' } },
+                rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true },
+            });
+        }
+
+        async function loadStockData() {
+            const btn = document.getElementById('btnAnalisis');
+            const overlay = document.getElementById('statusOverlay');
+            const badge = document.getElementById('dataSourceBadge');
+            const tfBadge = document.getElementById('timeframeBadge');
+            const stockCode = document.getElementById('stockInput').value.trim();
+
+            if (!stockCode) { alert('Masukkan kode saham!'); return; }
+
+            btn.disabled = true; btn.innerText = '⏳';
+            overlay.classList.remove('hidden');
+            badge.className = 'data-source-badge';
+            badge.innerText = ' Mengambil data...';
+
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(`http://localhost:5000/api/stock/${stockCode}?t=${timestamp}&timeframe=${currentTimeframe}`, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+                if (result.error) throw new Error(result.error);
+
+                tfBadge.innerText = result.timeframe_label || currentTimeframe.toUpperCase();
+
+                [candleSeries, volumeSeries, ma50Series, ma100Series, ma200Series, bollingerUpper, bollingerMiddle, bollingerLower].forEach(s => { if(s) s.setData([]); });
+                [ma50Series, ma100Series, ma200Series, bollingerUpper, bollingerMiddle, bollingerLower].forEach(s => { if(s) chart.removeSeries(s); });
+                fibLines.forEach(l => chart.removeSeries(l)); fibLines = [];
+                gannFanLines.forEach(l => chart.removeSeries(l)); gannFanLines = [];
+                squareOf9Lines.forEach(l => chart.removeSeries(l)); squareOf9Lines = [];
+
+                candleSeries.setData(result.data);
+                volumeSeries.setData(result.volume);
+
+                const indicators = calculateIndicators(result.data);
+                
+                ma50Series = chart.addLineSeries({ color: '#fbc02d', lineWidth: 1, title: 'MA50' });
+                ma50Series.setData(indicators.ma50.filter(d => d.value !== null));
+                ma100Series = chart.addLineSeries({ color: '#2962ff', lineWidth: 1, title: 'MA100' });
+                ma100Series.setData(indicators.ma100.filter(d => d.value !== null));
+                ma200Series = chart.addLineSeries({ color: '#f23645', lineWidth: 1, title: 'MA200' });
+                ma200Series.setData(indicators.ma200.filter(d => d.value !== null));
+
+                bollingerUpper = chart.addLineSeries({ color: '#9c27b0', lineWidth: 1, lineStyle: 2, title: 'BB Upper' });
+                bollingerUpper.setData(indicators.bollingerUpper);
+                bollingerMiddle = chart.addLineSeries({ color: '#9c27b0', lineWidth: 1, lineStyle: 2, title: 'BB Middle' });
+                bollingerMiddle.setData(indicators.bollingerMiddle);
+                bollingerLower = chart.addLineSeries({ color: '#9c27b0', lineWidth: 1, lineStyle: 2, title: 'BB Lower' });
+                bollingerLower.setData(indicators.bollingerLower);
+
+                [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1].forEach((level, i) => {
+                    const fibValue = indicators.swingHigh - (indicators.range * level);
+                    const fibLine = chart.addLineSeries({ color: '#ff9800', lineWidth: 1, lineStyle: 2, title: `Fib ${Math.round(level*100)}%` });
+                    fibLine.setData(result.data.map(d => ({ time: d.time, value: fibValue })));
+                    fibLines.push(fibLine);
+                });
+
+                const recentData = result.data.slice(-100);
+                const swingLow = Math.min(...recentData.map(d => d.low));
+                const swingLowIdx = result.data.findIndex(d => d.low === swingLow);
+                const atr = (indicators.swingHigh - swingLow) / 20;
+                
+                [{ratio:2,label:'2x1',color:'#ffc107'}, {ratio:1,label:'1x1',color:'#4caf50'}, {ratio:0.5,label:'1x2',color:'#2196f3'}].forEach(angle => {
+                    const gannLine = chart.addLineSeries({ color: angle.color, lineWidth: 1, lineStyle: 2, title: `Gann ${angle.label}`, priceLineVisible: false });
+                    const maxCandles = 50;
+                    const endIndex = Math.min(swingLowIdx + maxCandles, result.data.length);
+                    const gannData = result.data.slice(swingLowIdx, endIndex).map((d, i) => ({ time: d.time, value: swingLow + (i * atr * angle.ratio * 0.3) }));
+                    gannLine.setData(gannData);
+                    gannFanLines.push(gannLine);
+                });
+
+                const sq9 = result.square_of_9;
+                Object.entries({R4:sq9.resistance_4, R3:sq9.resistance_3, R2:sq9.resistance_2, R1:sq9.resistance_1, S1:sq9.support_1, S2:sq9.support_2, S3:sq9.support_3, S4:sq9.support_4}).forEach(([label, value]) => {
+                    const sq9Line = chart.addLineSeries({ color: label.startsWith('R') ? '#f44336' : '#2196f3', lineWidth: 1, lineStyle: 2, title: `Sq9 ${label}` });
+                    sq9Line.setData(result.data.map(d => ({ time: d.time, value: value })));
+                    squareOf9Lines.push(sq9Line);
+                });
+
+                if (macdLine) { macdChart.removeSeries(macdLine); macdLine = null; }
+                if (macdSignalLine) { macdChart.removeSeries(macdSignalLine); macdSignalLine = null; }
+                if (macdHistogram) { macdChart.removeSeries(macdHistogram); macdHistogram = null; }
+
+                macdLine = macdChart.addLineSeries({ color: '#00bcd4', lineWidth: 1, title: 'MACD' });
+                macdLine.setData(indicators.macd);
+                macdSignalLine = macdChart.addLineSeries({ color: '#ff9800', lineWidth: 1, title: 'Signal' });
+                macdSignalLine.setData(indicators.macdSignal);
+                macdHistogram = macdChart.addHistogramSeries({ color: '#00d4ff', priceFormat: { type: 'price', precision: 2 } });
+                macdHistogram.setData(indicators.macdHist.map(d => ({ ...d, color: d.value >= 0 ? 'rgba(0, 255, 136, 0.5)' : 'rgba(255, 68, 68, 0.5)' })));
+
+                applyIndicatorVisibility();
+                
+                updateDashboard(result.data[result.data.length - 1], indicators, result);
+                badge.innerText = '🟢 DATA REAL-TIME';
+                overlay.classList.add('hidden');
+
+            } catch (error) {
+                console.error(error);
+                badge.innerText = '❌ Error';
+            } finally {
+                btn.disabled = false; btn.innerText = 'Analisis';
+            }
+        }
+
+        function calculateIndicators(data) {
+            const closes = data.map(d => d.close);
+            const ma50 = [], ma100 = [], ma200 = [];
+            
+            for (let i = 0; i < data.length; i++) {
+                ma50.push({ time: data[i].time, value: i >= 49 ? closes.slice(i-49, i+1).reduce((a,b)=>a+b,0)/50 : null });
+                ma100.push({ time: data[i].time, value: i >= 99 ? closes.slice(i-99, i+1).reduce((a,b)=>a+b,0)/100 : null });
+                ma200.push({ time: data[i].time, value: i >= 199 ? closes.slice(i-199, i+1).reduce((a,b)=>a+b,0)/200 : null });
+            }
+
+            const recentData = data.slice(-100);
+            const swingHigh = Math.max(...recentData.map(d => d.high));
+            const swingLow = Math.min(...recentData.map(d => d.low));
+            const range = swingHigh - swingLow;
+
+            const bollingerUpper = [], bollingerMiddle = [], bollingerLower = [];
+            for (let i = 19; i < data.length; i++) {
+                const slice = closes.slice(i - 19, i + 1);
+                const sma = slice.reduce((a, b) => a + b, 0) / 20;
+                const variance = slice.reduce((sum, val) => sum + Math.pow(val - sma, 2), 0) / 20;
+                const stdDev = Math.sqrt(variance);
+                bollingerMiddle.push({ time: data[i].time, value: sma });
+                bollingerUpper.push({ time: data[i].time, value: sma + (2 * stdDev) });
+                bollingerLower.push({ time: data[i].time, value: sma - (2 * stdDev) });
+            }
+
+            const ema12 = calculateEMA(closes, 12);
+            const ema26 = calculateEMA(closes, 26);
+            const macdValues = ema12.map((val, i) => val !== null && ema26[i] !== null ? val - ema26[i] : null);
+            const macdFiltered = macdValues.filter(v => v !== null);
+            const signalEma = calculateEMA(macdFiltered, 9);
+            
+            const macd = [], macdSignal = [], macdHist = [];
+            let signalIdx = 0;
+            for (let i = 0; i < data.length; i++) {
+                if (macdValues[i] !== null) {
+                    macd.push({ time: data[i].time, value: macdValues[i] });
+                    if (signalEma[signalIdx] !== null) {
+                        macdSignal.push({ time: data[i].time, value: signalEma[signalIdx] });
+                        macdHist.push({ time: data[i].time, value: macdValues[i] - signalEma[signalIdx] });
+                    }
+                    signalIdx++;
+                }
+            }
+
+            return { ma50, ma100, ma200, swingHigh, swingLow, range, bollingerUpper, bollingerMiddle, bollingerLower, macd, macdSignal, macdHist };
+        }
+
+        function calculateEMA(data, period) {
+            const ema = [];
+            const multiplier = 2 / (period + 1);
+            let prevEma = data.slice(0, period).reduce((sum, val) => sum + val, 0) / period;
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) ema.push(null);
+                else if (i === period - 1) ema.push(prevEma);
+                else { const currentEma = (data[i] - prevEma) * multiplier + prevEma; ema.push(currentEma); prevEma = currentEma; }
+            }
+            return ema;
+        }
+
+        function updateDashboard(lastCandle, indicators, rawData) {
+            const { ma50, ma100, ma200, swingHigh, range, macd, macdSignal } = indicators;
+            const lastMA50 = ma50[ma50.length-1]?.value || 0;
+            const lastMA100 = ma100[ma100.length-1]?.value || 0;
+            const lastMA200 = ma200[ma200.length-1]?.value || 0;
+            const fib618 = swingHigh - (range * 0.618);
+            const fib1618 = swingHigh + (range * 0.618);
+
+            let status = "SIDEWAYS ";
+            if (lastCandle.close > lastMA50 && lastMA50 > lastMA100 && lastMA100 > lastMA200) status = "STRONG BULLISH 🟢";
+            else if (lastCandle.close < lastMA50 && lastMA50 < lastMA100 && lastMA100 < lastMA200) status = "STRONG BEARISH 🔴";
+            else if (lastCandle.close > lastMA200) status = "WEAK BULLISH 🟡";
+
+            const lastMACD = macd[macd.length-1]?.value || 0;
+            const lastSignal = macdSignal[macdSignal.length-1]?.value || 0;
+            let macdStatus = "NETRAL";
+            if (lastMACD > lastSignal && lastMACD > 0) macdStatus = "BUY STRONG 🟢";
+            else if (lastMACD > lastSignal) macdStatus = "BUY WEAK 🟡";
+            else if (lastMACD < lastSignal && lastMACD < 0) macdStatus = "SELL STRONG 🔴";
+            else macdStatus = "SELL WEAK 🟠";
+
+            document.getElementById('statusMarket').innerText = status;
+            document.getElementById('statusMarket').className = `metric-value ${status.includes('BULLISH') ? 'text-green' : (status.includes('BEARISH') ? 'text-red' : 'text-yellow')}`;
+            document.getElementById('zonaAkumulasi').innerText = `Rp ${fib618.toFixed(0)} - Rp ${lastMA50.toFixed(0)}`;
+            document.getElementById('zonaDistribusi').innerText = `Rp ${fib1618.toFixed(0)}`;
+            document.getElementById('supportKuat').innerText = `Rp ${fib618.toFixed(0)} (Fib 0.618)`;
+            document.getElementById('resistanceKuat').innerText = `Rp ${swingHigh.toFixed(0)} (Swing High)`;
+            document.getElementById('targetHarga').innerText = `Rp ${fib1618.toFixed(0)}`;
+            document.getElementById('macdSignal').innerText = macdStatus;
+            document.getElementById('hargaTerakhir').innerText = `Rp ${rawData.last_price.toLocaleString('id-ID')}`;
+            document.getElementById('infoMA').innerText = `${lastMA50.toFixed(0)} / ${lastMA100.toFixed(0)} / ${lastMA200.toFixed(0)}`;
+
+            const sq9 = rawData.square_of_9;
+            if (sq9) {
+                document.getElementById('sq9Res4').innerText = `Rp ${sq9.resistance_4.toLocaleString('id-ID')}`;
+                document.getElementById('sq9Res3').innerText = `Rp ${sq9.resistance_3.toLocaleString('id-ID')}`;
+                document.getElementById('sq9Res2').innerText = `Rp ${sq9.resistance_2.toLocaleString('id-ID')}`;
+                document.getElementById('sq9Res1').innerText = `Rp ${sq9.resistance_1.toLocaleString('id-ID')}`;
+                document.getElementById('sq9Sup1').innerText = `Rp ${sq9.support_1.toLocaleString('id-ID')}`;
+                document.getElementById('sq9Sup2').innerText = `Rp ${sq9.support_2.toLocaleString('id-ID')}`;
+            }
+
+            const atr = (swingHigh - indicators.swingLow) / 20;
+            const gann2x1 = indicators.swingLow + (50 * atr * 2 * 0.3);
+            const gann1x1 = indicators.swingLow + (50 * atr * 1 * 0.3);
+            const gann1x2 = indicators.swingLow + (50 * atr * 0.5 * 0.3);
+            
+            let gannPosition = '', gannTrend = '', gannSupport = '-', gannResistance = '-', gannRec = '';
+            
+            if (lastCandle.close > gann2x1) {
+                gannPosition = 'Di atas Gann 2x1'; gannTrend = 'Sangat Kuat';
+                gannSupport = `Rp ${gann2x1.toFixed(0)}`; gannRec = 'HOLD - Tren sangat kuat!';
+            } else if (lastCandle.close > gann1x1) {
+                gannPosition = 'Antara 2x1 & 1x1'; gannTrend = 'Kuat (Bullish)';
+                gannSupport = `Rp ${gann1x1.toFixed(0)}`; gannResistance = `Rp ${gann2x1.toFixed(0)}`;
+                gannRec = 'BUY on dip ke Gann 1x1';
+            } else if (lastCandle.close > gann1x2) {
+                gannPosition = 'Antara 1x1 & 1x2'; gannTrend = 'Moderat';
+                gannSupport = `Rp ${gann1x2.toFixed(0)}`; gannResistance = `Rp ${gann1x1.toFixed(0)}`;
+                gannRec = 'Wait & See / Hati-hati';
+            } else {
+                gannPosition = 'Di bawah Gann 1x2'; gannTrend = 'Lemah (Bearish)';
+                gannResistance = `Rp ${gann1x2.toFixed(0)}`; gannRec = 'AVOID / Sell';
+            }
+
+            document.getElementById('gannFanPosition').innerText = gannPosition;
+            document.getElementById('gannFanTrend').innerText = gannTrend;
+            document.getElementById('gannFanSupport').innerText = gannSupport;
+            document.getElementById('gannFanResistance').innerText = gannResistance;
+            
+            const recEl = document.getElementById('gannFanRecommendation');
+            recEl.innerText = gannRec;
+            recEl.className = `metric-value ${gannRec.includes('BUY') || gannRec.includes('HOLD') ? 'text-green' : (gannRec.includes('AVOID') ? 'text-red' : 'text-yellow')}`;
+        }
+    </script>
+</body>
+</html>
